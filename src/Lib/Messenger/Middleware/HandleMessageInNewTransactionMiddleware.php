@@ -46,7 +46,7 @@ class HandleMessageInNewTransactionMiddleware implements MiddlewareInterface
             if (!$this->isRunning) {
                 throw new \LogicException(sprintf('You can only use a "%s" stamp to define a new transaction in the context of a message handling.', Transaction::class));
             }
-            $this->queue[] = new QueuedEnvelope($envelope, $stack->next());
+            $this->queue[] = new QueuedEnvelope($envelope, $stack);
 
             return $envelope;
         }
@@ -82,7 +82,7 @@ class HandleMessageInNewTransactionMiddleware implements MiddlewareInterface
         while (null !== $queueItem = array_shift($this->queue)) {
             try {
                 // Execute the stored messages
-                $queueItem->getNext()->handle($queueItem->getEnvelope(), $stack);
+                $queueItem->getStack()->next()->handle($queueItem->getEnvelope(), $queueItem->getStack());
             } catch (\Throwable $exception) {
                 // Gather all exceptions
                 $exceptions[] = $exception;
@@ -106,13 +106,13 @@ final class QueuedEnvelope
     /** @var Envelope */
     private $envelope;
 
-    /** @var MiddlewareInterface */
-    private $next;
+    /** @var StackInterface */
+    private $stack;
 
-    public function __construct(Envelope $envelope, MiddlewareInterface $next)
+    public function __construct(Envelope $envelope, StackInterface $stack)
     {
         $this->envelope = $envelope;
-        $this->next = $next;
+        $this->stack = $stack;
     }
 
     public function getEnvelope(): Envelope
@@ -120,8 +120,8 @@ final class QueuedEnvelope
         return $this->envelope;
     }
 
-    public function getNext(): MiddlewareInterface
+    public function getStack(): StackInterface
     {
-        return $this->next;
+        return $this->stack;
     }
 }
